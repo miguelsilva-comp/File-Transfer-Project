@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Transfer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📁 File Transfer Hub</h1>
+            <p id="server-info">Connecting...</p>
+        </header>
+
+        <main>
+            <!-- Upload Section -->
+            <section class="upload-section">
+                <h2>Upload Files</h2>
+                <div class="upload-area" id="dropzone">
+                    <p>Drag & drop files here or click to select</p>
+                    <input type="file" id="file-input" multiple>
+                </div>
+                <div id="upload-progress"></div>
+            </section>
+
+            <!-- Files Section -->
+            <section class="files-section">
+                <h2>Available Files</h2>
+                <div class="stats">
+                    <span>Total files: <strong id="file-count">0</strong></span>
+                    <span>Total storage: <strong id="storage-used">0 B</strong></span>
+                </div>
+                <div class="files-list" id="files-container">
+                    <p class="empty-state">No files yet. Upload some!</p>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>💡 Tips: Files persist across sessions. Access this server from any device on your network.</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
