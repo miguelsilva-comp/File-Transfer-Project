@@ -1,7 +1,14 @@
 from flask import Flask, render_template, request, send_file, jsonify
 from pathlib import Path
+from contextlib import suppress
 import os
 import socket
+
+try:
+    from zeroconf import Zeroconf, ServiceInfo
+except ImportError:
+    Zeroconf = None
+    ServiceInfo = None
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
 
@@ -10,6 +17,15 @@ UPLOAD_FOLDER = Path.home() / 'FileTransfers'
 UPLOAD_FOLDER.mkdir(exist_ok=True)
 app.config['UPLOAD_FOLDER'] = str(UPLOAD_FOLDER)
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024 * 1024  # 10GB max
+HOST = os.getenv('FILE_TRANSFER_HOST', '0.0.0.0')
+PORT = int(os.getenv('FILE_TRANSFER_PORT', '5000'))
+SERVICE_NAME = os.getenv('FILE_TRANSFER_NAME', 'File Transfer Hub')
+HOSTNAME = os.getenv('FILE_TRANSFER_HOSTNAME', 'file-transfer.local')
+
+
+def ensure_fqdn(name):
+    """Ensure a hostname ends with a trailing dot for zeroconf."""
+    return name if name.endswith('.') else f'{name}.'
 
 
 def get_local_ip():
@@ -22,6 +38,37 @@ def get_local_ip():
         return ip
     except Exception:
         return "127.0.0.1"
+
+
+def register_mdns_service(ip_address, port):
+    """Advertise the server on the local network with mDNS when available."""
+    if Zeroconf is None or ServiceInfo is None:
+        return None, 'zeroconf not installed'
+
+    try:
+        addresses = [socket.inet_aton(ip_address)]
+    except OSError:
+        return None, 'invalid local IP address'
+
+    zeroconf = Zeroconf()
+    service_type = '_http._tcp.local.'
+    service_name = f'{SERVICE_NAME}.{service_type}'
+    info = ServiceInfo(
+        service_type,
+        service_name,
+        addresses=addresses,
+        port=port,
+        server=ensure_fqdn(HOSTNAME),
+    )
+
+    try:
+        zeroconf.register_service(info)
+    except Exception:
+        with suppress(Exception):
+            zeroconf.close()
+        raise
+
+    return zeroconf, f'http://{HOSTNAME}:{port}'
 
 
 @app.route('/')
@@ -114,7 +161,8 @@ def get_info():
     """Get server info."""
     return jsonify({
         'ip': get_local_ip(),
-        'port': 5000,
+        'port': PORT,
+        'hostname': HOSTNAME,
         'upload_folder': str(UPLOAD_FOLDER),
         'storage_free': get_folder_size(UPLOAD_FOLDER),
     })
@@ -143,7 +191,25 @@ def get_folder_size(path):
 
 if __name__ == '__main__':
     ip = get_local_ip()
+    zeroconf = None
+    mdns_url = None
+
+    try:
+        zeroconf, mdns_url = register_mdns_service(ip, PORT)
+    except Exception as exc:
+        print(f'⚠️  mDNS advertising failed: {exc}')
+
     print(f"\n🚀 File Transfer Server Running")
-    print(f"📍 Access from other devices at: http://{ip}:5000")
+    print(f"📍 Access from other devices at: http://{ip}:{PORT}")
+    if mdns_url:
+        print(f"📍 Short LAN name: {mdns_url}")
+    else:
+        print(f"📍 Short LAN name: http://{HOSTNAME}:{PORT} (set up local DNS or mDNS support)")
     print(f"💾 Files stored in: {UPLOAD_FOLDER}\n")
-    app.run(host='0.0.0.0', port=5000, debug=False)
+
+    try:
+        app.run(host=HOST, port=PORT, debug=False, use_reloader=False)
+    finally:
+        if zeroconf is not None:
+            with suppress(Exception):
+                zeroconf.close()
