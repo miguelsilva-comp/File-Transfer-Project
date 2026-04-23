@@ -199,13 +199,13 @@ if __name__ == '__main__':
     except Exception as exc:
         print(f'⚠️  mDNS advertising failed: {exc}')
 
-    print(f"\n🚀 File Transfer Server Running")
-    print(f"📍 Access from other devices at: http://{ip}:{PORT}")
+    print(f"\n File Transfer Server Running")
+    print(f" Access from other devices at: http://{ip}:{PORT}")
     if mdns_url:
-        print(f"📍 Short LAN name: {mdns_url}")
+        print(f" Short LAN name: {mdns_url}")
     else:
-        print(f"📍 Short LAN name: http://{HOSTNAME}:{PORT} (set up local DNS or mDNS support)")
-    print(f"💾 Files stored in: {UPLOAD_FOLDER}\n")
+        print(f" Short LAN name: http://{HOSTNAME}:{PORT} (set up local DNS or mDNS support)")
+    print(f" Files stored in: {UPLOAD_FOLDER}\n")
 
     try:
         app.run(host=HOST, port=PORT, debug=False, use_reloader=False)
